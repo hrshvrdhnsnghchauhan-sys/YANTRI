@@ -11,6 +11,8 @@
 
 export type LiveState = "disconnected" | "connecting" | "listening" | "speaking";
 
+import { WS_BASE } from "./config";
+
 // PCM Conversion Helper: converts Float32Array [-1.0, 1.0] to signed Int16 Raw PCM Little Endian
 function floatTo16BitPCM(input: Float32Array): ArrayBuffer {
   const buffer = new ArrayBuffer(input.length * 2);
@@ -157,14 +159,12 @@ export class ElysiaAudioSession {
 
     try {
       // 1. Establish custom WebSocket server bridge
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      
       const params = new URLSearchParams();
       if (voice) params.set("voice", voice);
       if (avatarStyle) params.set("avatarStyle", avatarStyle);
       const queryStr = params.toString() ? `?${params.toString()}` : "";
       
-      this.ws = new WebSocket(`${protocol}//${window.location.host}/live${queryStr}`);
+      this.ws = new WebSocket(`${WS_BASE}/live${queryStr}`);
       this.ws.binaryType = "blob";
 
       this.ws.onopen = async () => {

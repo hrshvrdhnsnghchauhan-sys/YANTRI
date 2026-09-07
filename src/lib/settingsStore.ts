@@ -10,6 +10,8 @@
  * No Context/Zustand — this is deliberately lightweight to match audio.ts/memoryTypes.ts.
  */
 
+import { API_BASE } from "./config";
+
 export interface ElysiaSettings {
   /** Launch ELYSIA (backends + browser tab) silently on Windows login. */
   autoStart: boolean;
@@ -101,7 +103,7 @@ export function saveSettings(patch: Partial<ElysiaSettings>): ElysiaSettings {
 /** Push settings to the backend (server.ts persists to settings.json). */
 async function syncSettingsToBackend(settings: ElysiaSettings): Promise<void> {
   try {
-    await fetch("/api/settings", {
+    await fetch(`${API_BASE}/api/settings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),

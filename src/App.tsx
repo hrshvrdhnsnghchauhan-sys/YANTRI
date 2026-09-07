@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Square,
 } from "lucide-react";
+import { API_BASE } from "./lib/config";
 
 export default function App() {
   const [settings, setSettings] = useState<ElysiaSettings>(loadSettings());
@@ -317,7 +318,7 @@ export default function App() {
 
   // Fetch initial recollections from backend database
   useEffect(() => {
-    fetch("/api/memories")
+    fetch(`${API_BASE}/api/memories`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -329,7 +330,7 @@ export default function App() {
 
   const handleAddManualMemory = async (category: MemoryCategory, text: string) => {
     try {
-      const resp = await fetch("/api/memories", {
+      const resp = await fetch(`${API_BASE}/api/memories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category, text })
@@ -345,7 +346,7 @@ export default function App() {
 
   const handleDeleteMemory = async (id: string) => {
     try {
-      const resp = await fetch(`/api/memories/${id}`, {
+      const resp = await fetch(`${API_BASE}/api/memories/${id}`, {
         method: "DELETE"
       });
       const resObj = await resp.json();

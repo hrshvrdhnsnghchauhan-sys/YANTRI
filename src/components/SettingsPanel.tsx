@@ -15,6 +15,7 @@ import {
   ElysiaSettings,
   GEMINI_VOICES,
 } from "../lib/settingsStore";
+import { API_BASE } from "../lib/config";
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -100,7 +101,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, onVoiceChan
         setAgentHealth({ online: true, toolCount: data.tool_count });
       } catch {
         try {
-          const res2 = await fetch("/api/agent-health", { cache: "no-store" });
+          const res2 = await fetch(`${API_BASE}/api/agent-health`, { cache: "no-store" });
           if (res2.ok) {
             const d = await res2.json();
             setAgentHealth({ online: !!d.online, toolCount: d.tool_count });
@@ -247,7 +248,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, onVoiceChan
                           checked={settings.autoStart}
                           onChange={(v) => {
                             onChange({ autoStart: v });
-                            void fetch("/api/settings", {
+                            void fetch(`${API_BASE}/api/settings`, {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ autoStart: v }),

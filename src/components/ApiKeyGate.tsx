@@ -11,6 +11,7 @@
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
 import { KeyRound, Loader2, ExternalLink, ShieldCheck } from "lucide-react";
+import { API_BASE } from "../lib/config";
 
 type Phase = "checking" | "needsKey" | "ready";
 
@@ -24,7 +25,7 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/config", { cache: "no-store" });
+        const res = await fetch(`${API_BASE}/api/config`, { cache: "no-store" });
         const data = await res.json();
         if (cancelled) return;
         setPhase(data.hasApiKey ? "ready" : "needsKey");
@@ -45,7 +46,7 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/config/apikey", {
+      const res = await fetch(`${API_BASE}/api/config/apikey`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey: key }),

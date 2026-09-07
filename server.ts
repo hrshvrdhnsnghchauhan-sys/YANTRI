@@ -4,6 +4,7 @@ import path from "path";
 import { WebSocketServer } from "ws";
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from "@google/genai";
 import dotenv from "dotenv";
+import cors from "cors";
 import * as fs from "fs";
 import { spawn, execSync } from "child_process";
 import { 
@@ -282,6 +283,8 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
+  // Allow cross-origin requests from Vercel frontend
+  app.use(cors({ origin: true, credentials: true }));
   app.use(express.json());
 
   // Memory REST API Endpoints
