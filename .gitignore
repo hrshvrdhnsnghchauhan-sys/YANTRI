@@ -19,6 +19,9 @@ userdata.json
 reminders.json
 calendar_tombstones.json
 google_tokens.json
+yantri.db
+yantri.db-shm
+yantri.db-wal
 .vercel
 
 # smoke test transient probe
