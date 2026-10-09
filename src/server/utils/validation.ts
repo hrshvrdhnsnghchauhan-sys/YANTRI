@@ -41,6 +41,7 @@ export const profileCreateSchema = z.object({
 
 // User data / records schemas
 export const recordCreateSchema = z.object({
+  id: z.string().optional(),
   type: z.string().min(1).max(50),
   title: z.string().min(1).max(200),
   payload: z.record(z.string(), z.unknown()).optional(),
@@ -115,6 +116,38 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1).max(200),
+});
+
+// Patch/query variants used by the REST routes.
+export const recordPatchSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  payload: z.record(z.string(), z.unknown()).optional(),
+  due: z.string().datetime({ offset: true }).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+export const recordQueryParamsSchema = z.object({
+  type: z.string().optional(),
+  tag: z.string().optional(),
+  search: z.string().optional(),
+  dueBefore: z.string().optional(),
+  dueAfter: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(200).optional(),
+});
+
+export const apiKeySchema = z.object({
+  apiKey: z.string().min(1).max(500),
+});
+
+export const settingsSchema = z.object({}).passthrough();
+
+export const newsQuerySchema = z.object({
+  category: z.string().max(40).optional(),
+  count: z.coerce.number().int().positive().max(50).optional(),
+});
+
+export const weatherQuerySchema = z.object({
+  location: z.string().max(120).optional(),
 });
 
 // Tool execution schema

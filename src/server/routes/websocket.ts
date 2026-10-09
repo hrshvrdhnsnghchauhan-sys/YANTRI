@@ -23,6 +23,8 @@ import { searchTavily, formatTavilyResult } from "@services/server_tavily";
 import { callDesktopAgent, isDesktopAgentAvailable, IS_CLOUD_MODE } from "@services/server_bridge";
 import { storeDraft, takeDraft, peekDraft, wsKeyFor, parseRecipients, normalizeRecipients, composeEmail, mergeDraftWithArgs } from "@services/server_email_draft";
 import { getGeminiApiKey } from "@services/server_paths";
+import { AUTH_REQUIRED } from "../config";
+import { extractToken, verifyToken } from "../middleware/auth";
 
 /** Live WebSocket clients — used for reminder and tool broadcasts. */
 export const connectedClients = new Set<WebSocket>();
@@ -52,6 +54,20 @@ export function setupWebSocket(server: Server): WebSocketServer {
   });
 
   wss.on("connection", async (clientWs, req) => {
+    // Enforce authentication when required. Browsers cannot set headers on a
+    // WebSocket handshake, so the JWT is accepted via ?token= (falling back to
+    // the Authorization header for non-browser clients).
+    if (AUTH_REQUIRED) {
+      const wsUrl = new URL(req.url || "", `http://${req.headers.host}`);
+      const token = wsUrl.searchParams.get("token") || extractToken(req as any);
+      const user = token ? verifyToken(token) : null;
+      if (!user) {
+        clientWs.send(JSON.stringify({ type: "error", error: "UNAUTHORIZED: Authentication required." }));
+        clientWs.close();
+        return;
+      }
+    }
+
     const clientKey = wsKeyFor(nextClientId++);
     console.log(`Client WebSocket connected to /live (${clientKey})`);
     connectedClients.add(clientWs);

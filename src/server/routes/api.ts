@@ -61,6 +61,20 @@ import {
 import { dataFile, hasGeminiApiKey, setGeminiApiKey } from "@services/server_paths";
 import { queueUpload, isCloudStorageConfigured } from "@services/server_storage";
 import { logCommand, logError, LOGS_DIR } from "../utils/auditLog";
+import { handleError } from "../utils/httpError";
+import { validateBody, validateQuery } from "../middleware/validate";
+import {
+  newsQuerySchema,
+  weatherQuerySchema,
+  reminderCreateSchema,
+  profileCreateSchema,
+  recordCreateSchema,
+  recordPatchSchema,
+  recordQueryParamsSchema,
+  tavilySearchSchema,
+  apiKeySchema,
+  settingsSchema,
+} from "../utils/validation";
 import { metricsHandler } from "../utils/metrics";
 import { swaggerSpec } from "../utils/swagger";
 import swaggerUi from "swagger-ui-express";
@@ -88,7 +102,7 @@ export function createApiRouter(): Router {
     try {
       res.json(await loadMemories());
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -113,7 +127,7 @@ export function createApiRouter(): Router {
       await saveMemories(memories);
       res.status(201).json(newMemory);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -124,7 +138,7 @@ export function createApiRouter(): Router {
       await saveMemories(memories);
       res.json({ success: true });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -159,8 +173,7 @@ export function createApiRouter(): Router {
           `<p>You can close this tab and return to Yantri.</p></div></body></html>`
       );
     } catch (e: any) {
-      logError(`GOOGLE_OAUTH_CALLBACK_FAILED: ${e?.message || e}`);
-      res.status(500).send(`Google OAuth failed: ${e?.message || e}`);
+      handleError(res, e, "GOOGLE_OAUTH_CALLBACK_FAILED");
     }
   });
 
@@ -223,11 +236,11 @@ export function createApiRouter(): Router {
     try {
       res.json(getReminders());
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
-  router.post("/reminders", async (req: Request, res: Response) => {
+  router.post("/reminders", validateBody(reminderCreateSchema), async (req: Request, res: Response) => {
     try {
       const { text, minutes } = req.body || {};
       if (!text || typeof minutes !== "number" || minutes <= 0) {
@@ -237,7 +250,7 @@ export function createApiRouter(): Router {
       logCommand(`REMINDER_SET ${text} in ${minutes}m`);
       res.status(201).json(reminder);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -248,7 +261,7 @@ export function createApiRouter(): Router {
       logCommand(`REMINDER_CANCEL id=${req.params.id}`);
       res.json({ success: true });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -257,11 +270,11 @@ export function createApiRouter(): Router {
     try {
       res.json((await loadProfile()) || {});
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
-  router.post("/profile", async (req: Request, res: Response) => {
+  router.post("/profile", validateBody(profileCreateSchema), async (req: Request, res: Response) => {
     try {
       const { email, name, role, features } = req.body || {};
       if (!email || typeof email !== "string" || !email.includes("@")) {
@@ -278,13 +291,12 @@ export function createApiRouter(): Router {
       logCommand(`PROFILE_SAVED ${profile.email} role=${profile.role} features=${profile.features.join(",")}`);
       res.status(201).json(profile);
     } catch (e: any) {
-      logError(`PROFILE_SAVE_ERROR: ${e?.message || e}`);
-      res.status(500).json({ error: e?.message || "Failed to save profile." });
+      handleError(res, e, "PROFILE_SAVE_ERROR");
     }
   });
 
   // ── User data records ──────────────────────────────────────────────────────
-  router.get("/userdata", async (req: Request, res: Response) => {
+  router.get("/userdata", validateQuery(recordQueryParamsSchema), async (req: Request, res: Response) => {
     try {
       const records = await queryRecords({
         type: req.query.type as string | undefined,
@@ -296,11 +308,11 @@ export function createApiRouter(): Router {
       });
       res.json(records);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
-  router.post("/userdata", async (req: Request, res: Response) => {
+  router.post("/userdata", validateBody(recordCreateSchema), async (req: Request, res: Response) => {
     try {
       const { type, title, payload, due, tags, id } = req.body || {};
       if (!type || !title) {
@@ -309,17 +321,17 @@ export function createApiRouter(): Router {
       const rec = await saveRecord({ type, title, payload, due, tags, id });
       res.status(201).json(rec);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
-  router.patch("/userdata/:id", async (req: Request, res: Response) => {
+  router.patch("/userdata/:id", validateBody(recordPatchSchema), async (req: Request, res: Response) => {
     try {
       const rec = await updateRecord(req.params.id, req.body || {});
       if (!rec) return res.status(404).json({ error: "Record not found." });
       res.json(rec);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -329,7 +341,7 @@ export function createApiRouter(): Router {
       if (!ok) return res.status(404).json({ error: "Record not found." });
       res.json({ success: true });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -337,7 +349,7 @@ export function createApiRouter(): Router {
     try {
       res.json(await countByType());
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -364,11 +376,11 @@ export function createApiRouter(): Router {
     try {
       res.json(loadSettingsFile());
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
-  router.post("/settings", async (req: Request, res: Response) => {
+  router.post("/settings", validateBody(settingsSchema), async (req: Request, res: Response) => {
     try {
       const patch = req.body;
       if (!patch || typeof patch !== "object") {
@@ -385,7 +397,7 @@ export function createApiRouter(): Router {
       res.json(next);
     } catch (e: any) {
       logError(`SETTINGS_SAVE_ERROR: ${e.message}`);
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -401,7 +413,7 @@ export function createApiRouter(): Router {
     });
   });
 
-  router.post("/config/apikey", async (req: Request, res: Response) => {
+  router.post("/config/apikey", validateBody(apiKeySchema), async (req: Request, res: Response) => {
     try {
       const key: string = (req.body?.apiKey ?? "").toString().trim();
       if (!key) {
@@ -427,8 +439,7 @@ export function createApiRouter(): Router {
       logCommand("APIKEY_SAVED");
       res.json({ ok: true, hasApiKey: true });
     } catch (e: any) {
-      logError(`APIKEY_SAVE_ERROR: ${e?.message || e}`);
-      res.status(500).json({ error: e?.message || "Failed to save API key." });
+      handleError(res, e, "APIKEY_SAVE_ERROR");
     }
   });
 
@@ -491,7 +502,7 @@ export function createApiRouter(): Router {
       const lines = content.split("\n").filter(Boolean).slice(-100);
       res.json({ lines, file: fileName });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
@@ -571,7 +582,7 @@ export function createApiRouter(): Router {
         paragraphs: paragraphs.slice(0, 12),
       });
     } catch (err: any) {
-      res.status(500).json({ error: `Scraper error: ${err.message}` });
+      handleError(res, err, "proxy");
     }
   });
 
@@ -700,11 +711,7 @@ export function createApiRouter(): Router {
       res.removeHeader("Content-Security-Policy");
       res.status(200).send(htmlContents);
     } catch (e: any) {
-      res
-        .status(500)
-        .send(
-          `Yantri Web Proxy Error: Internal error occurred proxying URL "${targetUrl || "unknown"}". Details: ${e.message}`
-        );
+      handleError(res, e, "web-proxy");
     }
   });
 
@@ -785,7 +792,8 @@ export function createApiRouter(): Router {
       res.setHeader("Cache-Control", "public, max-age=60");
       res.status(200).json({ results: videoList.slice(0, 15) });
     } catch (err: any) {
-      res.status(500).json({ error: err.message, results: [] });
+      logError(`YOUTUBE_SEARCH_ERROR: ${err?.message || err}`);
+      res.status(500).json({ error: "YouTube search failed.", results: [] });
     }
   });
 
@@ -798,16 +806,16 @@ export function createApiRouter(): Router {
   });
 
   // ── Weather & News ─────────────────────────────────────────────────────────
-  router.get("/weather", async (req: Request, res: Response) => {
+  router.get("/weather", validateQuery(weatherQuerySchema), async (req: Request, res: Response) => {
     try {
       const result = await getWeatherServer({ location: String(req.query.location || "") });
       res.json(result);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
-  router.get("/news", async (req: Request, res: Response) => {
+  router.get("/news", validateQuery(newsQuerySchema), async (req: Request, res: Response) => {
     try {
       const result = await getNewsServer({
         category: String(req.query.category || "top"),
@@ -815,12 +823,12 @@ export function createApiRouter(): Router {
       });
       res.json(result);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 
   // ── Tavily search ──────────────────────────────────────────────────────────
-  router.post("/search/tavily", async (req: Request, res: Response) => {
+  router.post("/search/tavily", validateBody(tavilySearchSchema), async (req: Request, res: Response) => {
     try {
       const { query, search_depth, topic, max_results, include_images } = req.body || {};
       if (!query) return res.status(400).json({ error: "Query required" });
@@ -834,7 +842,7 @@ export function createApiRouter(): Router {
       });
       res.json({ result: formatTavilyResult(result) });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      handleError(res, e);
     }
   });
 

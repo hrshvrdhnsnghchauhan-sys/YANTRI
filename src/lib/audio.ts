@@ -12,6 +12,7 @@
 export type LiveState = "disconnected" | "connecting" | "listening" | "speaking" | "thinking";
 
 import { WS_BASE } from "./config";
+import { getToken } from "./authStore";
 
 // PCM Conversion Helper: converts Float32Array [-1.0, 1.0] to signed Int16 Raw PCM Little Endian
 function floatTo16BitPCM(input: Float32Array): ArrayBuffer {
@@ -163,6 +164,10 @@ export class YantriAudioSession {
       const params = new URLSearchParams();
       if (voice) params.set("voice", voice);
       if (avatarStyle) params.set("avatarStyle", avatarStyle);
+      // Browsers cannot set headers on a WebSocket handshake; pass the JWT as a
+      // query param so the server can authenticate the /live upgrade.
+      const authToken = getToken();
+      if (authToken) params.set("token", authToken);
       const queryStr = params.toString() ? `?${params.toString()}` : "";
       
       this.ws = new WebSocket(`${WS_BASE}/live${queryStr}`);
