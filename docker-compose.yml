@@ -39,6 +39,10 @@ services:
       - YANTRI_AGENT_HOST=127.0.0.1
       - YANTRI_AGENT_PORT=8765
       - YANTRI_BROWSER_MODE=${YANTRI_BROWSER_MODE:-managed}
+      - JWT_SECRET=${JWT_SECRET}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     volumes:
       - yantri-data:/app/data
       - yantri-logs:/app/logs
@@ -51,6 +55,7 @@ services:
       retries: 3
     depends_on:
       - yantri-agent
+      - redis
 
   # Python Desktop Agent
   yantri-agent:
@@ -77,10 +82,26 @@ services:
       start_period: 30s
       retries: 3
     shm_size: 2g
+    # Hardening: drop every capability, then re-add only SYS_ADMIN which the
+    # Chromium sandbox needs. seccomp stays unconfined for Chromium.
+    cap_drop:
+      - ALL
     cap_add:
       - SYS_ADMIN
     security_opt:
       - seccomp:unconfined
+
+  # Optional: Redis for multi-replica WebSocket broadcast (issue 13).
+  redis:
+    image: redis:7-alpine
+    container_name: yantri-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   yantri-data:

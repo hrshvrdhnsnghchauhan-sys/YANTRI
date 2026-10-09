@@ -29,6 +29,7 @@ import {
   validateConfig,
 } from "./config";
 import { logger, requestLogger, logError as logPinoError } from "./utils/logger";
+import { initTracing, tracingMiddleware } from "./utils/tracing";
 import { createApiRouter } from "./routes/api";
 import { setupWebSocket, broadcastToClients, deliverLocal } from "./routes/websocket";
 import { initEventBus, stopEventBus } from "./events/bus";
@@ -59,6 +60,9 @@ if (!configCheck.valid) {
 }
 
 async function startServer() {
+  // Start tracing before any request handling so spans are recorded.
+  await initTracing();
+
   const app = express();
 
   // Security: Helmet for security headers.
@@ -88,8 +92,9 @@ async function startServer() {
     })
   );
 
-  // Request logging with request-id correlation.
+  // Request logging with request-id correlation, then tracing.
   app.use(requestLogger());
+  app.use(tracingMiddleware());
 
   // Body size limits (DoS protection).
   app.use(express.json({ limit: "1mb" }));
@@ -110,8 +115,22 @@ async function startServer() {
   // Authentication routes are always public.
   app.use("/api/auth", createAuthRouter());
 
-  // Everything else under /api requires authentication when AUTH_REQUIRED.
-  app.use("/api", authenticate, requireAuth, createApiRouter());
+  // API versioning (issue 18): the same router is mounted at a stable
+  // /api/v1 surface and at the legacy unversioned /api surface, which is
+  // marked deprecated but kept working for existing clients.
+  const apiRouter = createApiRouter();
+  app.use("/api/v1", authenticate, requireAuth, apiRouter);
+  app.use(
+    "/api",
+    (_req, res, next) => {
+      res.set("Deprecation", "true");
+      res.set("Link", '</api/v1>; rel="successor-version"');
+      next();
+    },
+    authenticate,
+    requireAuth,
+    apiRouter
+  );
 
   // Static assets folder.
   app.use("/assets", express.static(path.join(process.cwd(), "assets")));

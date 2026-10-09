@@ -71,11 +71,20 @@ COPY agent/requirements.txt ./
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright Chromium
-RUN playwright install chromium --with-deps
+# Shared, world-readable browser cache so the non-root runtime user can launch Chromium.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN playwright install chromium --with-deps && chmod -R 755 /ms-playwright
 
 # Copy agent source
 COPY agent/ ./
+
+# Hardening: drop privileges for the desktop agent (was running as root).
+RUN useradd --create-home --uid 1001 --shell /usr/sbin/nologin yantri \
+    && chown -R yantri:yantri /app/agent
+USER yantri
+
+# Start the FastAPI agent (previously the stage had no CMD, so it never ran).
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8765"]
 
 # =============================================================================
 # Stage 4: Production Runtime

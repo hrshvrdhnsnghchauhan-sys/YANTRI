@@ -38,11 +38,13 @@ const fileTransport = pino.transport({
 });
 
 // Create logger
+//
+// NOTE: no custom `formatters.level` here. With multiple transport targets pino
+// warns and DROPS records that don't carry a numeric level, which silently
+// discarded production logs (audit/security events included). Keep the default
+// numeric level; pino-pretty renders it for humans in development.
 export const logger = pino({
   level: process.env.LOG_LEVEL || (IS_PRODUCTION ? "info" : "debug"),
-  formatters: {
-    level: (label) => ({ level: label.toUpperCase() }),
-  },
   timestamp: pino.stdTimeFunctions.isoTime,
   base: {
     service: "yantri",

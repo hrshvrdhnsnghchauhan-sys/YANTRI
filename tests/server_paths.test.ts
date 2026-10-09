@@ -13,11 +13,13 @@ async function importModule() {
 describe("server_paths", () => {
   beforeEach(() => {
     process.env.YANTRI_DATA_DIR = testDataDir;
-    process.env.GEMINI_API_KEY = undefined;
+    delete process.env.GEMINI_API_KEY;
     vi.resetModules();
     if (fs.existsSync(testDataDir)) {
       fs.rmSync(testDataDir, { recursive: true, force: true });
     }
+    // Recreate so tests that write files before importing the module don't ENOENT.
+    fs.mkdirSync(testDataDir, { recursive: true });
   });
 
   afterEach(() => {

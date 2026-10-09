@@ -5,6 +5,7 @@
 
 import swaggerJsdoc from "swagger-jsdoc";
 import { IS_PRODUCTION } from "@config/index";
+import { generateZodSchemas } from "./openapi";
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -152,6 +153,13 @@ WebSocket documentation for details.
     },
   },
   apis: ["./src/server/routes/*.ts"],
+};
+
+// Merge schemas generated from the Zod validation layer (issue 19) over the
+// hand-written component schemas so the spec matches runtime validation.
+(options.definition as any).components.schemas = {
+  ...((options.definition as any).components.schemas || {}),
+  ...generateZodSchemas(),
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

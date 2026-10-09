@@ -112,7 +112,7 @@ async function main() {
     // getWeather/getNews route to Node (wttr.in / Google News RSS). Exercise
     // the implementations in a child tsx process: unreachable external
     // services degrade to a warning, but a module crash fails the smoke run.
-    const modUrl = pathToFileURL(path.join(process.cwd(), "server_weather_news.ts")).href;
+    const modUrl = pathToFileURL(path.join(process.cwd(), "src/server/services/server_weather_news.ts")).href;
     const probeSrc = [
       `import { getWeatherServer, getNewsServer } from ${JSON.stringify(modUrl)};`,
       "try {",
