@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import { Reminder } from "../../lib/reminderTypes";
 import { dataFile } from "./server_paths";
 import { queueUpload } from "./server_storage";
+import { persistJson } from "../db";
 
 const REMINDERS_FILE = dataFile("reminders.json");
 
@@ -37,7 +38,7 @@ export async function loadReminders(): Promise<Reminder[]> {
 
 async function saveReminders(): Promise<void> {
   try {
-    await fs.writeFile(REMINDERS_FILE, JSON.stringify(reminders, null, 2), "utf-8");
+    await persistJson("reminders.json", REMINDERS_FILE, reminders);
     queueUpload("reminders.json"); // V5.1: mirror to cloud object storage if configured
   } catch (error) {
     console.error("[Reminder] Error saving reminders:", error);

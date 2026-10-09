@@ -30,7 +30,8 @@ import {
 } from "./config";
 import { logger, requestLogger, logError as logPinoError } from "./utils/logger";
 import { createApiRouter } from "./routes/api";
-import { setupWebSocket, connectedClients } from "./routes/websocket";
+import { setupWebSocket, broadcastToClients, deliverLocal } from "./routes/websocket";
+import { initEventBus, stopEventBus } from "./events/bus";
 import { createAuthRouter } from "./routes/auth";
 import { authenticate, requireAuth } from "./middleware/auth";
 import { logStartup, logError } from "./utils/auditLog";
@@ -162,23 +163,18 @@ async function startServer() {
       );
     });
 
+    // Cross-instance broadcast bus (Redis when configured, local otherwise).
+    await initEventBus(deliverLocal);
+
     await loadReminders();
     startReminderTimer();
     setOnReminderFired((reminder) => {
-      for (const ws of connectedClients) {
-        try {
-          ws.send(
-            JSON.stringify({
-              type: "reminder",
-              text: reminder.text,
-              id: reminder.id,
-              fireAt: reminder.fireAt,
-            })
-          );
-        } catch {
-          /* client disconnected */
-        }
-      }
+      broadcastToClients({
+        type: "reminder",
+        text: reminder.text,
+        id: reminder.id,
+        fireAt: reminder.fireAt,
+      });
     });
 
     setOnRecordMutated(() => {
@@ -205,6 +201,7 @@ async function startServer() {
     } catch {
       /* best-effort */
     }
+    await stopEventBus().catch(() => {});
     server.close(() => {
       logger.info("HTTP server closed");
       process.exit(0);

@@ -31,6 +31,8 @@ import {
   googleSearchEvents,
 } from "./server_google";
 import { queueUpload } from "./server_storage";
+import { mirrorJson } from "../db";
+import { writeTextAtomicSync } from "../utils/persist";
 import fs from "fs";
 import {
   patchRecordSilent,
@@ -250,11 +252,11 @@ function loadTombstones(): void {
 
 function persistTombstones(): void {
   try {
-    fs.writeFileSync(
+    writeTextAtomicSync(
       TOMBSTONES_FILE,
-      JSON.stringify(Object.fromEntries(dismissedEvents), null, 2),
-      "utf-8"
+      JSON.stringify(Object.fromEntries(dismissedEvents), null, 2)
     );
+    mirrorJson("calendar_tombstones.json", Object.fromEntries(dismissedEvents));
     queueUpload("calendar_tombstones.json"); // V5.1: mirror to cloud storage if configured
   } catch (e) {
     console.warn("[CalendarSync] could not persist tombstones:", e);

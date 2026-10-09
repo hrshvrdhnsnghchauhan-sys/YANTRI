@@ -3,6 +3,7 @@ import { Memory, MemoryTransaction } from "../../lib/memoryTypes";
 import { dataFile } from "./server_paths";
 import { queueUpload } from "./server_storage";
 import { generateText } from "./server_llm_fallback";
+import { persistJson } from "../db";
 
 const MEMORY_FILE = dataFile("memories.json");
 
@@ -23,7 +24,7 @@ export async function loadMemories(): Promise<Memory[]> {
 
 export async function saveMemories(memories: Memory[]): Promise<void> {
   try {
-    await fs.writeFile(MEMORY_FILE, JSON.stringify(memories, null, 2), "utf-8");
+    await persistJson("memories.json", MEMORY_FILE, memories);
     queueUpload("memories.json"); // V5.1: mirror to cloud object storage if configured
     console.log(`[Memory] Saved ${memories.length} memories successfully.`);
   } catch (error) {

@@ -16,6 +16,8 @@
 import fs from "fs";
 import path from "path";
 import { queueUpload } from "./server_storage";
+import { mirrorJson } from "../db";
+import { writeTextAtomicSync } from "../utils/persist";
 
 /** Writable per-user data directory. Falls back to cwd in development. */
 export const DATA_DIR: string = process.env.YANTRI_DATA_DIR || process.cwd();
@@ -78,7 +80,8 @@ export function setGeminiApiKey(key: string): void {
   if (!trimmed) throw new Error("API key must not be empty.");
   const current = readSecrets();
   current.geminiApiKey = trimmed;
-  fs.writeFileSync(SECRETS_FILE, JSON.stringify(current, null, 2), "utf-8");
+  writeTextAtomicSync(SECRETS_FILE, JSON.stringify(current, null, 2));
+  mirrorJson("secrets.json", current);
   queueUpload("secrets.json"); // V5.1: mirror to cloud object storage if configured
   try {
     fs.chmodSync(SECRETS_FILE, 0o600); // owner-only where supported
@@ -92,7 +95,8 @@ export function clearGeminiApiKey(): void {
   const current = readSecrets();
   delete current.geminiApiKey;
   try {
-    fs.writeFileSync(SECRETS_FILE, JSON.stringify(current, null, 2), "utf-8");
+    writeTextAtomicSync(SECRETS_FILE, JSON.stringify(current, null, 2));
+    mirrorJson("secrets.json", current);
   } catch {
     /* best-effort */
   }

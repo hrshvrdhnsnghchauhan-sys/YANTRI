@@ -40,6 +40,14 @@ export function writeJsonAtomic(file: string, data: unknown): Promise<void> {
   return writeTextAtomic(file, JSON.stringify(data, null, 2));
 }
 
+/** Synchronous atomic write for legacy synchronous call sites. */
+export function writeTextAtomicSync(file: string, content: string): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  fs.writeFileSync(tmp, content, "utf-8");
+  fs.renameSync(tmp, file);
+}
+
 /** Read + parse a JSON file. Returns null when missing or corrupt. */
 export function readJsonFile<T>(file: string): T | null {
   try {

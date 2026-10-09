@@ -25,6 +25,7 @@ import { storeDraft, takeDraft, peekDraft, wsKeyFor, parseRecipients, normalizeR
 import { getGeminiApiKey } from "@services/server_paths";
 import { AUTH_REQUIRED } from "../config";
 import { extractToken, verifyToken } from "../middleware/auth";
+import { publishBroadcast } from "../events/bus";
 
 /** Live WebSocket clients — used for reminder and tool broadcasts. */
 export const connectedClients = new Set<WebSocket>();
@@ -32,11 +33,21 @@ export const connectedClients = new Set<WebSocket>();
 /** Monotonic id per connection — keys per-client email drafts. */
 let nextClientId = 1;
 
-/** Broadcast a JSON payload to every connected client (best-effort). */
-export function broadcastToClients(payload: unknown): void {
+/** Deliver a payload to clients connected to THIS instance only. */
+export function deliverLocal(payload: unknown): void {
+  const message = JSON.stringify(payload);
   for (const ws of connectedClients) {
-    try { ws.send(JSON.stringify(payload)); } catch { /* client disconnected */ }
+    try {
+      ws.send(message);
+    } catch {
+      /* client disconnected */
+    }
   }
+}
+
+/** Broadcast to every client across all replicas (Redis) or just locally. */
+export function broadcastToClients(payload: unknown): void {
+  publishBroadcast(payload);
 }
 
 export function setupWebSocket(server: Server): WebSocketServer {
@@ -919,11 +930,7 @@ export function setupWebSocket(server: Server): WebSocketServer {
                         return;
                       }
                       logCommand(`YOUTUBE_PLAY "${query}" video=${videoId}`);
-                      for (const ws of connectedClients) {
-                        try {
-                          ws.send(JSON.stringify({ type: "playYouTube", query, videoId }));
-                        } catch { /* client may have disconnected */ }
-                      }
+                      broadcastToClients({ type: "playYouTube", query, videoId });
                       session.sendToolResponse({
                         functionResponses: [{
                           name: fnName,
@@ -1010,16 +1017,12 @@ export function setupWebSocket(server: Server): WebSocketServer {
                     const outputText = agentResult.ok
                       ? JSON.stringify(agentResult.result ?? { result: "Done." })
                       : (agentResult.error || "Desktop agent error.");
-                    for (const ws of connectedClients) {
-                      try {
-                        ws.send(JSON.stringify({
-                          type: "terminal_output",
-                          tool: fnName,
-                          args: fc.args,
-                          output: outputText,
-                        }));
-                      } catch (e) { /* client may have disconnected */ }
-                    }
+                    broadcastToClients({
+                      type: "terminal_output",
+                      tool: fnName,
+                      args: fc.args,
+                      output: outputText,
+                    });
 
                     if (agentResult.ok) {
                       const output = agentResult.result ?? { result: "Done." };

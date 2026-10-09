@@ -23,6 +23,9 @@ import * as fs from "fs";
 import { dataFile } from "./server_paths";
 import { callDesktopAgent } from "./server_bridge";
 import { queueUpload } from "./server_storage";
+import { mirrorJson } from "../db";
+import { writeTextAtomicSync } from "../utils/persist";
+import { encryptJson, decryptJson } from "../utils/crypto";
 
 // ---------------------------------------------------------------------------
 // Token persistence (google_tokens.json in the writable data dir)
@@ -42,7 +45,9 @@ const TOKENS_FILE = dataFile("google_tokens.json");
 function readStoredTokens(): StoredTokens | null {
   try {
     if (fs.existsSync(TOKENS_FILE)) {
-      return JSON.parse(fs.readFileSync(TOKENS_FILE, "utf-8")) as StoredTokens;
+      // Tokens are encrypted at rest (issue 16); decryptJson also transparently
+      // reads legacy plaintext files from before encryption was enabled.
+      return decryptJson<StoredTokens>(fs.readFileSync(TOKENS_FILE, "utf-8"));
     }
   } catch {
     /* corrupt file — re-auth */
@@ -52,7 +57,8 @@ function readStoredTokens(): StoredTokens | null {
 
 function writeStoredTokens(tokens: StoredTokens): void {
   try {
-    fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2), "utf-8");
+    writeTextAtomicSync(TOKENS_FILE, encryptJson(tokens));
+    mirrorJson("google_tokens.json", tokens);
     queueUpload("google_tokens.json"); // V5.1: mirror to cloud object storage if configured
     try {
       fs.chmodSync(TOKENS_FILE, 0o600);

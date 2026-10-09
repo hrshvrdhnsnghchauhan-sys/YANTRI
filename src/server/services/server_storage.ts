@@ -34,6 +34,8 @@
 
 import * as fs from "fs";
 import { DATA_DIR, dataFile } from "./server_paths";
+import { mirrorJson } from "../db";
+import { writeTextAtomicSync } from "../utils/persist";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -50,6 +52,69 @@ const SYNC_INTERVAL_MS = Math.max(30_000, Number(process.env.YANTRI_SYNC_INTERVA
 /** Whether the cloud mirror is configured and should be active. */
 export function isCloudStorageConfigured(): boolean {
   return Boolean(S3_ENDPOINT && S3_BUCKET && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
+}
+
+// ── Sync status + retry (issue 17) ───────────────────────────────────────────
+export interface SyncStatus {
+  configured: boolean;
+  active: boolean;
+  lastUploadAt: string | null;
+  lastErrorAt: string | null;
+  lastError: string | null;
+  uploadsTotal: number;
+  failuresTotal: number;
+  deadLetter: string[];
+}
+
+const syncStatus: SyncStatus = {
+  configured: isCloudStorageConfigured(),
+  active: false,
+  lastUploadAt: null,
+  lastErrorAt: null,
+  lastError: null,
+  uploadsTotal: 0,
+  failuresTotal: 0,
+  deadLetter: [],
+};
+
+/** Snapshot of cloud-sync health, surfaced via /api/sync/status. */
+export function getSyncStatus(): SyncStatus {
+  return { ...syncStatus, deadLetter: [...syncStatus.deadLetter] };
+}
+
+const RETRY_ATTEMPTS = Math.max(1, Number(process.env.SYNC_RETRY_ATTEMPTS || 4));
+
+/** Exponential backoff with jitter (0.5s, 1s, 2s, … capped at 30s). */
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < RETRY_ATTEMPTS) {
+        const delay = Math.min(30_000, 500 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 250);
+        console.warn(`[CloudStorage] ${label} attempt ${attempt} failed; retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function recordUploadSuccess(): void {
+  syncStatus.uploadsTotal += 1;
+  syncStatus.lastUploadAt = new Date().toISOString();
+}
+
+function recordUploadFailure(name: string, error: unknown): void {
+  syncStatus.failuresTotal += 1;
+  syncStatus.lastErrorAt = new Date().toISOString();
+  syncStatus.lastError = error instanceof Error ? error.message : String(error);
+  if (!syncStatus.deadLetter.includes(name)) {
+    syncStatus.deadLetter.push(name);
+    if (syncStatus.deadLetter.length > 100) syncStatus.deadLetter.shift();
+  }
 }
 
 /** Files that must survive redeploys (basenames inside DATA_DIR). */
@@ -174,7 +239,8 @@ export async function restoreFromCloud(): Promise<{ restored: string[]; skipped:
       } catch {
         /* fall through and restore cloud copy */
       }
-      fs.writeFileSync(localPath, body, "utf-8");
+      writeTextAtomicSync(localPath, body);
+      mirrorJson(name, safeJsonParse(body));
       got.push(name);
     } catch (e: any) {
       console.warn(`[CloudStorage] restore failed for ${name}:`, e?.message || e);
@@ -228,9 +294,11 @@ export function queueUpload(basename: string): void {
       const localPath = dataFile(basename);
       if (!fs.existsSync(localPath)) return;
       const body = fs.readFileSync(localPath, "utf-8");
-      await putObject(objectKey(basename), body);
+      await withRetry(`upload ${basename}`, () => putObject(objectKey(basename), body));
+      recordUploadSuccess();
     } catch (e: any) {
       console.warn(`[CloudStorage] upload failed for ${basename}:`, e?.message || e);
+      recordUploadFailure(basename, e);
     } finally {
       inflight.delete(basename);
     }
@@ -256,10 +324,12 @@ export async function flushAllToCloud(): Promise<{ uploaded: string[]; failed: s
       const localPath = dataFile(name);
       if (!fs.existsSync(localPath)) continue;
       const body = fs.readFileSync(localPath, "utf-8");
-      await putObject(objectKey(name), body);
+      await withRetry(`flush ${name}`, () => putObject(objectKey(name), body));
+      recordUploadSuccess();
       uploaded.push(name);
     } catch (e: any) {
       console.warn(`[CloudStorage] flush failed for ${name}:`, e?.message || e);
+      recordUploadFailure(name, e);
       failed.push(name);
     }
   }
@@ -277,6 +347,7 @@ export function startCloudStorageSync(): void {
     console.log("[CloudStorage] not configured (S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY) — state lives on the local disk only.");
     return;
   }
+  syncStatus.active = true;
   console.log(`[CloudStorage] enabled → endpoint=${S3_ENDPOINT} bucket=${S3_BUCKET} root=${SYNC_ROOT}/`);
   // Boot restore, then a safety full-flush so a fresh deploy immediately
   // backs up whatever it has (e.g. secrets.json written during onboarding).
@@ -325,7 +396,8 @@ export function readMirroredJson<T>(basename: string, fallback: T): T {
 }
 
 export function writeMirroredJson(basename: string, value: unknown): void {
-  fs.writeFileSync(dataFile(basename), JSON.stringify(value, null, 2), "utf-8");
+  writeTextAtomicSync(dataFile(basename), JSON.stringify(value, null, 2));
+  mirrorJson(basename, value);
   queueUpload(basename);
 }
 

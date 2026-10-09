@@ -59,7 +59,9 @@ import {
   IS_CLOUD_MODE,
 } from "@services/server_bridge";
 import { dataFile, hasGeminiApiKey, setGeminiApiKey } from "@services/server_paths";
-import { queueUpload, isCloudStorageConfigured } from "@services/server_storage";
+import { queueUpload, isCloudStorageConfigured, getSyncStatus } from "@services/server_storage";
+import { mirrorJson, getDb } from "../db";
+import { writeTextAtomicSync } from "../utils/persist";
 import { logCommand, logError, LOGS_DIR } from "../utils/auditLog";
 import { handleError } from "../utils/httpError";
 import { validateBody, validateQuery } from "../middleware/validate";
@@ -93,8 +95,46 @@ export function createApiRouter(): Router {
   const router = Router();
 
   // ── Health ────────────────────────────────────────────────────────────────
+  // Liveness: cheap, always 200 when the process is up.
   router.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Readiness: dependency checks (issue 14).
+  router.get("/health/deep", async (_req: Request, res: Response) => {
+    const checks: Record<string, { ok: boolean; detail?: string }> = {};
+
+    const hasKey = hasGeminiApiKey();
+    checks.gemini = { ok: hasKey, detail: hasKey ? "api key configured" : "no Gemini API key configured" };
+
+    checks.cloudStorage = {
+      ok: true,
+      detail: isCloudStorageConfigured() ? "configured" : "not configured (local disk only)",
+    };
+
+    try {
+      getDb().prepare("SELECT 1").get();
+      checks.database = { ok: true, detail: "sqlite reachable" };
+    } catch (e: any) {
+      checks.database = { ok: false, detail: e?.message || String(e) };
+    }
+
+    if (IS_CLOUD_MODE) {
+      checks.desktopAgent = { ok: true, detail: "cloud mode (desktop agent not used)" };
+    } else {
+      const online = await isDesktopAgentAvailable();
+      checks.desktopAgent = {
+        ok: online,
+        detail: online ? "online" : getDesktopAgentUnavailability() || "offline",
+      };
+    }
+
+    const ok = Object.values(checks).every((c) => c.ok);
+    res.status(ok ? 200 : 503).json({
+      status: ok ? "ok" : "degraded",
+      checks,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   // ── Memory REST API ────────────────────────────────────────────────────────
@@ -368,7 +408,8 @@ export function createApiRouter(): Router {
   }
 
   function saveSettingsFile(data: Record<string, unknown>): void {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), "utf-8");
+    writeTextAtomicSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+    mirrorJson("settings.json", data);
     queueUpload("settings.json");
   }
 
@@ -848,7 +889,7 @@ export function createApiRouter(): Router {
 
   // ── Cloud sync status ──────────────────────────────────────────────────────
   router.get("/sync/status", async (_req: Request, res: Response) => {
-    res.json({ configured: isCloudStorageConfigured() });
+    res.json(getSyncStatus());
   });
 
   // ── Metrics ────────────────────────────────────────────────────────────────

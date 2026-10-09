@@ -19,6 +19,7 @@ import {
 } from "../../lib/profileTypes";
 import { dataFile } from "./server_paths";
 import { queueUpload } from "./server_storage";
+import { persistJson } from "../db";
 
 const PROFILE_FILE = dataFile("profile.json");
 
@@ -60,7 +61,7 @@ export async function saveProfile(
     updatedAt: now,
   };
   if (!profile.email) throw new Error("Email is required.");
-  await fs.writeFile(PROFILE_FILE, JSON.stringify(profile, null, 2), "utf-8");
+  await persistJson("profile.json", PROFILE_FILE, profile);
   queueUpload("profile.json"); // V5.1: mirror to cloud object storage if configured
   cachedProfile = profile;
   console.log(`[Profile] Saved profile for ${profile.email} (role=${profile.role}, features=[${profile.features.join(", ")}])`);

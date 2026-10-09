@@ -18,6 +18,7 @@ import fs from "fs/promises";
 import { dataFile } from "./server_paths";
 import { loadProfile } from "./server_profile";
 import { queueUpload } from "./server_storage";
+import { persistJson } from "../db";
 
 const DATA_FILE = dataFile("userdata.json");
 
@@ -76,7 +77,7 @@ async function readAll(): Promise<UserRecord[]> {
 
 async function writeAll(records: UserRecord[]): Promise<void> {
   try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(records, null, 2), "utf-8");
+    await persistJson("userdata.json", DATA_FILE, records);
     cache = records;
     queueUpload("userdata.json"); // V5.1: mirror to cloud object storage if configured
   } catch (error) {

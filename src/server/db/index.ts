@@ -48,6 +48,15 @@ export function getDb(): Database.Database {
   return db;
 }
 
+let schemaReady = false;
+
+/** Ensure tables exist (idempotent, cheap after the first call). */
+export function ensureSchema(): void {
+  if (schemaReady) return;
+  initStorage();
+  schemaReady = true;
+}
+
 /** Create tables if they do not exist. Safe to call repeatedly. */
 export function initStorage(): void {
   const db = getDb();
@@ -98,6 +107,31 @@ export function countUsers(): number {
 }
 
 // ── Documents (JSON state mirror) ─────────────────────────────────────────────
+
+/**
+ * Mirror a JSON document into SQLite (synchronous, best-effort). This is the
+ * transactional copy that cannot be corrupted by a torn write; the JSON file
+ * remains the on-disk compatibility format.
+ */
+export function mirrorJson(name: string, data: unknown): void {
+  try {
+    ensureSchema();
+    getDb()
+      .prepare(
+        `INSERT INTO documents (name, json, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(name) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`
+      )
+      .run(name, JSON.stringify(data), new Date().toISOString());
+  } catch {
+    /* mirroring is best-effort; the file write still happens */
+  }
+}
+
+/** Write a JSON state document atomically AND mirror it into SQLite. */
+export async function persistJson(name: string, file: string, data: unknown): Promise<void> {
+  mirrorJson(name, data);
+  await writeJsonAtomic(file, data);
+}
 
 /**
  * Persist the transactional copy, then refresh the JSON mirror atomically.
