@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
-import * as serverCalendarSync from "../server_calendar_sync";
-import * as serverUserData from "../server_userdata";
-import * as serverProfile from "../server_profile";
-import * as serverGoogle from "../server_google";
-import * as serverPaths from "../server_paths";
+import * as serverCalendarSync from "../src/server/services/server_calendar_sync";
+import * as serverUserData from "../src/server/services/server_userdata";
+import * as serverProfile from "../src/server/services/server_profile";
+import * as serverGoogle from "../src/server/services/server_google";
+import * as serverPaths from "../src/server/services/server_paths";
 
 const originalEnv = { ...process.env };
 const testDataDir = "/tmp/yantri-test-calendar-sync";

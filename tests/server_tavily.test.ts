@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import * as serverTavily from "../server_tavily";
+import * as serverTavily from "../src/server/services/server_tavily";
 
 describe("server_tavily", () => {
   beforeEach(() => {

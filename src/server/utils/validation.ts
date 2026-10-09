@@ -104,6 +104,19 @@ export const emailDraftSchema = z.object({
   tone: z.enum(["formal", "casual", "polite"]).optional(),
 });
 
+// Authentication schemas
+export const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(200),
+  name: z.string().min(1).max(100).optional(),
+  role: z.enum(["student", "professional", "business_owner"]).optional(),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1).max(200),
+});
+
 // Tool execution schema
 export const toolExecuteSchema = z.object({
   tool: z.string().min(1),
@@ -133,6 +146,8 @@ export function validateSchema<T>(schema: z.ZodSchema<T>, data: unknown): { succ
 }
 
 // Type exports
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
 export type MemoryCreate = z.infer<typeof memoryCreateSchema>;
 export type MemoryUpdate = z.infer<typeof memoryUpdateSchema>;
 export type ReminderCreate = z.infer<typeof reminderCreateSchema>;

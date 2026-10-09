@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import * as serverWeatherNews from "../server_weather_news";
+import * as serverWeatherNews from "../src/server/services/server_weather_news";
 
 describe("server_weather_news", () => {
   beforeEach(() => {

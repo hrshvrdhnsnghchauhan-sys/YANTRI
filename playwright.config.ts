@@ -28,7 +28,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'CLOUD_MODE=true NODE_ENV=production GEMINI_API_KEY=test-key TAVILY_API_KEY=test-key node dist/server.cjs',
+    command: 'CLOUD_MODE=true NODE_ENV=production AUTH_ENABLED=false JWT_SECRET=playwright-test-secret AGENT_SHARED_SECRET=playwright-test-secret GEMINI_API_KEY=test-key TAVILY_API_KEY=test-key node dist/server.cjs',
     url: 'http://localhost:3000/health',
     reuseExistingServer: !process.env.CI,
     timeout: 60000,

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import * as serverYouTube from "../server_youtube";
+import * as serverYouTube from "../src/server/services/server_youtube";
 
 describe("server_youtube", () => {
   beforeEach(() => {

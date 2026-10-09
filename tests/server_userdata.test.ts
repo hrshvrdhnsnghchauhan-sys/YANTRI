@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
-import * as serverPaths from "../server_paths";
-import * as serverUserData from "../server_userdata";
-import * as serverProfile from "../server_profile";
-import * as serverStorage from "../server_storage";
+import * as serverPaths from "../src/server/services/server_paths";
+import * as serverUserData from "../src/server/services/server_userdata";
+import * as serverProfile from "../src/server/services/server_profile";
+import * as serverStorage from "../src/server/services/server_storage";
 
 const originalEnv = { ...process.env };
 const testDataDir = "/tmp/yantri-test-userdata";

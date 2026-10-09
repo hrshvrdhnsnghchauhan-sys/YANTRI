@@ -3,11 +3,37 @@
  * Centralized configuration with validation
  */
 
+import { randomBytes } from "crypto";
+
 // Server
 export const PORT = Number(process.env.PORT || 3000);
 export const NODE_ENV = process.env.NODE_ENV || "development";
 export const IS_PRODUCTION = NODE_ENV === "production";
 export const CLOUD_MODE = process.env.CLOUD_MODE === "true";
+
+// ── Authentication ────────────────────────────────────────────────────────────
+// Auth is enforced in production unless explicitly disabled, and disabled in
+// development unless explicitly enabled (keeps the local dev loop friction-free).
+// `AUTH_ENABLED` accepts "true"/"false"; when unset it defaults to IS_PRODUCTION.
+export const AUTH_REQUIRED: boolean =
+  process.env.AUTH_ENABLED !== undefined
+    ? process.env.AUTH_ENABLED === "true"
+    : IS_PRODUCTION;
+
+// Signing secret for JWT access tokens. In production it must be provided (see
+// validateConfig). In development we generate an ephemeral secret so local runs
+// work without configuration; tokens then do not survive a restart.
+export const JWT_SECRET: string =
+  process.env.JWT_SECRET && process.env.JWT_SECRET.length > 0
+    ? process.env.JWT_SECRET
+    : randomBytes(32).toString("hex");
+
+export const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || "7d";
+export const ALLOW_REGISTRATION: boolean = process.env.ALLOW_REGISTRATION !== "false";
+
+// Key used to encrypt sensitive data at rest (Google OAuth tokens). Falls back
+// to a deterministic derivation of JWT_SECRET when not explicitly set.
+export const ENCRYPTION_KEY: string = process.env.ENCRYPTION_KEY || JWT_SECRET;
 
 // CORS
 export const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000")
@@ -17,14 +43,18 @@ export const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost
 
 // Rate Limiting
 export const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-export const RATE_LIMIT_MAX_REQUESTS = 100;
+export const RATE_LIMIT_MAX_REQUESTS = 100; // general API budget per window
+export const AUTH_RATE_LIMIT_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX || 10); // auth attempts per window
+export const WS_CONNECTIONS_PER_MINUTE = Number(process.env.WS_CONNECTIONS_PER_MINUTE || 30);
 
 // Security
 export const AGENT_SHARED_SECRET = process.env.AGENT_SHARED_SECRET || "";
 export const HELMET_CSP = {
   directives: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+    // NOTE: 'unsafe-eval' removed (issue: loose CSP). 'unsafe-inline' remains
+    // required by Vite's dev/HMR bootstrap; use nonces when serving from a CDN.
+    scriptSrc: ["'self'", "'unsafe-inline'"],
     styleSrc: ["'self'", "'unsafe-inline'"],
     imgSrc: ["'self'", "data:", "https:"],
     connectSrc: ["'self'", "ws:", "wss:", "https:"],
@@ -43,6 +73,15 @@ export const AGENT_RESPAWN_COOLDOWN_MS = 60_000;
 
 // Data Directory
 export const DATA_DIR = process.env.YANTRI_DATA_DIR || process.cwd();
+
+// SQLite database file (transactional store used for users and as a durable
+// mirror for JSON state files).
+export const DB_FILE = process.env.YANTRI_DB_FILE || `${DATA_DIR}/yantri.db`;
+
+// ── Optional infrastructure (graceful fallbacks when unset) ──────────────────
+export const REDIS_URL = process.env.REDIS_URL || "";
+export const OTEL_ENABLED = process.env.OTEL_ENABLED === "true";
+export const OTEL_SERVICE_NAME = process.env.OTEL_SERVICE_NAME || "yantri-server";
 
 // API Keys
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -67,21 +106,28 @@ export const YANTRI_SYNC_ROOT = process.env.YANTRI_SYNC_ROOT || "yantri";
 export const YANTRI_SYNC_INTERVAL_MS = Number(process.env.YANTRI_SYNC_INTERVAL_MS || 300_000);
 
 // Validation
-export function validateConfig(): { valid: boolean; errors: string[] } {
+export function validateConfig(): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
-  if (!GEMINI_API_KEY && !CLOUD_MODE) {
-    errors.push("GEMINI_API_KEY is required (or set CLOUD_MODE=true for server-only mode)");
+  // Fatal: authentication enabled in production without a stable signing
+  // secret would silently mint ephemeral tokens on every restart.
+  if (IS_PRODUCTION && AUTH_REQUIRED && !process.env.JWT_SECRET) {
+    errors.push("JWT_SECRET must be set in production when authentication is enabled");
   }
 
+  // Non-fatal advisories.
+  if (!GEMINI_API_KEY && !CLOUD_MODE) {
+    warnings.push("GEMINI_API_KEY is not set — voice/chat will be unavailable until a key is added in the UI");
+  }
   if (IS_PRODUCTION) {
     if (ALLOWED_ORIGINS.some((o) => o.includes("localhost"))) {
-      errors.push("Production should not allow localhost origins");
+      warnings.push("Production ALLOWED_ORIGINS still contains localhost; set ALLOWED_ORIGINS for your real domain");
     }
     if (!AGENT_SHARED_SECRET) {
-      errors.push("AGENT_SHARED_SECRET should be set in production");
+      warnings.push("AGENT_SHARED_SECRET is not set — the desktop agent bridge is unauthenticated");
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, warnings };
 }

@@ -2,7 +2,7 @@
 /**
  * YANTRI — startup smoke test.
  *
- * Boots the Node server (dev entry `tsx server.ts`) with the Python desktop
+ * Boots the Node server (dev entry `tsx src/server/index.ts`) with the Python desktop
  * agent NOT running, then asserts the capability flags the UI depends on:
  *
  *   /api/config        → hasApiKey:true, cloudMode matches CLOUD_MODE,
@@ -65,7 +65,7 @@ async function waitForServer(proc, timeoutMs = 45000) {
 
 async function main() {
   // Spawn the dev server. Inherit this process's env (CLOUD_MODE etc.).
-  const server = spawn("npx", ["tsx", "server.ts"], {
+  const server = spawn("npx", ["tsx", "src/server/index.ts"], {
     cwd: process.cwd(),
     env: process.env,
     stdio: ["ignore", "ignore", "pipe"], // stderr kept for crash diagnostics

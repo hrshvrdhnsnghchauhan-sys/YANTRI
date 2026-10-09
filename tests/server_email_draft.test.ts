@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import * as serverEmailDraft from "../server_email_draft";
+import * as serverEmailDraft from "../src/server/services/server_email_draft";
 
 describe("server_email_draft", () => {
   beforeEach(() => {

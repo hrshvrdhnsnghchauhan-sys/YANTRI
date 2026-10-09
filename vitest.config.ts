@@ -19,7 +19,6 @@ export default defineConfig({
         "main.tsx",
         "App.tsx",
         "src/components/**",
-        "server.ts",
       ],
     },
     setupFiles: ["./tests/setup.ts"],
@@ -28,8 +27,15 @@ export default defineConfig({
     pool: "forks",
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./"),
-    },
+    alias: [
+      { find: /^@services\/(.*)$/, replacement: path.resolve(__dirname, "src/server/services/$1") },
+      { find: /^@routes\/(.*)$/, replacement: path.resolve(__dirname, "src/server/routes/$1") },
+      { find: /^@handlers\/(.*)$/, replacement: path.resolve(__dirname, "src/server/handlers/$1") },
+      { find: /^@config\/(.*)$/, replacement: path.resolve(__dirname, "src/server/config/$1") },
+      { find: /^@utils\/(.*)$/, replacement: path.resolve(__dirname, "src/server/utils/$1") },
+      { find: /^@server\/(.*)$/, replacement: path.resolve(__dirname, "src/server/$1") },
+      { find: /^@lib\/(.*)$/, replacement: path.resolve(__dirname, "src/lib/$1") },
+      { find: /^@\/(.*)$/, replacement: path.resolve(__dirname, "$1") },
+    ],
   },
 });

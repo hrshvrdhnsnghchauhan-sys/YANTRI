@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
-import * as serverDeadlineSync from "../server_deadline_sync";
-import * as serverReminders from "../server_reminders";
-import * as serverPaths from "../server_paths";
+import * as serverDeadlineSync from "../src/server/services/server_deadline_sync";
+import * as serverReminders from "../src/server/services/server_reminders";
+import * as serverPaths from "../src/server/services/server_paths";
 
 const originalEnv = { ...process.env };
 const testDataDir = "/tmp/yantri-test-deadline-sync";

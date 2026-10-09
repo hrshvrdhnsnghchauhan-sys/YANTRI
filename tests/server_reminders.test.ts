@@ -7,7 +7,7 @@ const originalEnv = { ...process.env };
 const testDataDir = "/tmp/yantri-test-reminders";
 
 async function importModule() {
-  return await import("../server_reminders");
+  return await import("../src/server/services/server_reminders");
 }
 
 describe("server_reminders", () => {
@@ -35,7 +35,7 @@ describe("server_reminders", () => {
 
     it("should load reminders from file", async () => {
       const serverReminders = await importModule();
-      const serverPaths = await import("../server_paths");
+      const serverPaths = await import("../src/server/services/server_paths");
       const remindersFile = serverPaths.dataFile("reminders.json");
       await fsPromises.writeFile(remindersFile, JSON.stringify([
         { id: "1", text: "Test", fireAt: new Date().toISOString(), createdAt: new Date().toISOString(), fired: false }
@@ -68,7 +68,7 @@ describe("server_reminders", () => {
       serverReminders.addReminder("Test reminder", 10);
       await new Promise(r => setTimeout(r, 100));
       
-      const serverPaths = await import("../server_paths");
+      const serverPaths = await import("../src/server/services/server_paths");
       const remindersFile = serverPaths.dataFile("reminders.json");
       const data = JSON.parse(await fsPromises.readFile(remindersFile, "utf-8"));
       expect(data).toHaveLength(1);

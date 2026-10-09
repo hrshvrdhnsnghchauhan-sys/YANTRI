@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
-import * as serverBridge from "../server_bridge";
-import * as serverPaths from "../server_paths";
+import * as serverBridge from "../src/server/services/server_bridge";
+import * as serverPaths from "../src/server/services/server_paths";
 
 const originalEnv = { ...process.env };
 const testDataDir = "/tmp/yantri-test-bridge";
@@ -46,7 +46,7 @@ describe("server_bridge", () => {
     it("should return false in cloud mode", async () => {
       process.env.CLOUD_MODE = "true";
       vi.resetModules();
-      const mod = await import("../server_bridge");
+      const mod = await import("../src/server/services/server_bridge");
       expect(await mod.isDesktopAgentAvailable()).toBe(false);
     });
 
@@ -59,7 +59,7 @@ describe("server_bridge", () => {
     it("should reject immediately in cloud mode", async () => {
       process.env.CLOUD_MODE = "true";
       vi.resetModules();
-      const mod = await import("../server_bridge");
+      const mod = await import("../src/server/services/server_bridge");
       
       const result = await mod.callDesktopAgent("test_tool", { arg: "value" });
       
@@ -76,7 +76,7 @@ describe("server_bridge", () => {
     it("should return immediately in cloud mode", async () => {
       process.env.CLOUD_MODE = "true";
       vi.resetModules();
-      const mod = await import("../server_bridge");
+      const mod = await import("../src/server/services/server_bridge");
       
       await expect(mod.ensureDesktopAgent()).resolves.toBeUndefined();
     });

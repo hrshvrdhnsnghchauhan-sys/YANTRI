@@ -7,7 +7,7 @@ const originalEnv = { ...process.env };
 const testDataDir = "/tmp/yantri-test-paths";
 
 async function importModule() {
-  return await import("../server_paths");
+  return await import("../src/server/services/server_paths");
 }
 
 describe("server_paths", () => {
