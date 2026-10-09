@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: yantri-ai
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Never spawn or call the local desktop agent on a web host.
+      # Without this the server wastes 20s probing 127.0.0.1:8765 on boot.
+      - key: CLOUD_MODE
+        value: "true"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENCODE_API_KEY
+        sync: false
+      - key: OPENCODE_BASE_URL
+        sync: false
+      - key: OPENCODE_MODEL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Optional: pin the OAuth redirect if you use a custom domain.
+      # Leave unset on Render — the server auto-detects RENDER_EXTERNAL_URL.
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      # Security: CORS & Agent Authentication
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: AGENT_SHARED_SECRET
+        sync: false
+      # ── Persistent state (recommended on free tier — its disk is ephemeral).
+      # Any S3-compatible store: Cloudflare R2, Backblaze B2, AWS S3.
+      # Memories, reminders, settings, profile, userdata and Google OAuth
+      # tokens are mirrored to the bucket and restored at boot.
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # Subfolder inside the bucket, and how often to flush (milliseconds).
+      - key: YANTRI_SYNC_ROOT
+        value: yantri
+      - key: YANTRI_SYNC_INTERVAL_MS
+        value: 300000

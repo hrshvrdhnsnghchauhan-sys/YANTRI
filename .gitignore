@@ -1,0 +1,25 @@
+node_modules/
+dist/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+.env.*.local
+!.env.example
+logs/
+.gemini/
+WhatsApp*
+memories.json
+settings.json
+secrets.json
+profile.json
+userdata.json
+reminders.json
+calendar_tombstones.json
+google_tokens.json
+.vercel
+
+# smoke test transient probe
+scripts/.smoke-probe.mjs
