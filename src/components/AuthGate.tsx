@@ -172,8 +172,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
               >
                 Google
               </button>
-            </div>
-          </div>}
+</div>
+</div>
           <input
             type="password"
             required
