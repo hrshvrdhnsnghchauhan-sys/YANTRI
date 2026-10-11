@@ -1,10 +1,12 @@
 /**
  * Authentication service — scrypt password hashing + JWT issuance, backed by
  * the SQLite users table (db/index.ts).
+ * Also supports Google OAuth-based account creation.
  */
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
+import { OAuth2Client } from "google-auth-library";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../config";
 import {
   findUserByEmail,
@@ -12,6 +14,7 @@ import {
   insertUser,
   type UserRow,
 } from "../db";
+import { insertGoogleToken } from "./server_google";
 
 export interface PublicUser {
   id: string;
@@ -101,4 +104,79 @@ export function authenticateUser(email: string, password: string): PublicUser | 
 export function getUserById(id: string): PublicUser | null {
   const row = findUserById(id);
   return row ? toPublic(row) : null;
+}
+
+/**
+ * Google OAuth client for verifying ID tokens.
+ */
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+/**
+ * Verify a Google ID token and return user info.
+ */
+export async function verifyGoogleIdToken(token: string): Promise<{ email: string; name: string | null; picture: string | null }> {
+  const ticket = await googleClient.verifyIdToken({
+    idToken: token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  const payload = ticket.getPayload();
+  if (!payload) throw new Error("Invalid Google ID token");
+  return {
+    email: payload.email || "",
+    name: payload.name || null,
+    picture: payload.picture || null,
+  };
+}
+
+/**
+ * Attempt to register a user with Google OAuth.
+ * If the user already exists (by email), returns the existing user.
+ * If the user does not exist, creates a new account.
+ */
+export async function registerWithGoogle(googleToken: string): Promise<RegisterResult> {
+  try {
+    const { email, name, picture } = await verifyGoogleIdToken(googleToken);
+    if (!email) {
+      return { ok: false, error: "Google account could not provide an email address." };
+    }
+
+    // Check if user already exists
+    const existing = findUserByEmail(email);
+    if (existing) {
+      return { ok: true, user: toPublic(existing) };
+    }
+
+    // Create new user with Google-derived data
+    const now = new Date().toISOString();
+    const googleName = name || email.split("@")[0];
+    const row: UserRow = {
+      id: randomUUID(),
+      email,
+      password_hash: hashPassword("google_" + randomUUID()), // placeholder, never used for login
+      name: googleName,
+      role: null,
+      created_at: now,
+      updated_at: now,
+    };
+    insertUser(row);
+
+    // Optionally store Google tokens for server-native Google services
+    try {
+      await insertGoogleToken({
+        userId: row.id,
+        token: googleToken,
+        refreshToken: "", // will be populated if OAuth flow provides refresh
+        expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        scope: "profile email",
+      });
+    } catch (e) {
+      // Non-critical - Google services can be connected later from Settings
+      console.warn("[auth] Could not store Google token:", e);
+    }
+
+    return { ok: true, user: toPublic(row) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Google registration failed";
+    return { ok: false, error: message };
+  }
 }

@@ -11,7 +11,16 @@ import {
   RATE_LIMIT_WINDOW_MS,
   AUTH_RATE_LIMIT_MAX,
 } from "../config";
-import { registerUser, authenticateUser, signToken, getUserById } from "../services/auth";
+import { OAuth2Client } from "google-auth-library";
+import { JWT_SECRET, JWT_EXPIRES_IN } from "../config";
+import {
+  findUserByEmail,
+  findUserById,
+  insertUser,
+  type UserRow,
+} from "../db";
+import { insertGoogleToken } from "./server_google";
+import { verifyGoogleIdToken, registerWithGoogle } from "./auth";
 import { authenticate, requireAuth, type AuthedRequest } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import { registerSchema, loginSchema } from "../utils/validation";
@@ -48,6 +57,28 @@ export function createAuthRouter(): Router {
     const token = signToken(user);
     logSecurityEvent("auth_success", { action: "register", email: user.email });
     res.status(201).json({ token, user });
+  });
+
+  /** POST /api/auth/register/google — Google OAuth-based registration */
+  router.post("/register/google", authLimiter, async (req: Request, res: Response) => {
+    try {
+      const { token } = req.body as { token: string };
+      if (!token) {
+        return res.status(400).json({ error: "Google token is required." });
+      }
+      const result = await registerWithGoogle(token);
+      if (!result.ok) {
+        return res.status(409).json({ error: result.error ?? "Google registration failed." });
+      }
+      const user = result.user;
+      const tokenJwt = signToken(user);
+      logSecurityEvent("auth_success", { action: "register_google", email: user.email });
+      res.status(201).json({ token: tokenJwt, user });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Google registration failed";
+      logSecurityEvent("auth_failure", { action: "register_google", reason: message });
+      res.status(500).json({ error: message });
+    }
   });
 
   router.post("/login", authLimiter, validateBody(loginSchema), (req: Request, res: Response) => {
