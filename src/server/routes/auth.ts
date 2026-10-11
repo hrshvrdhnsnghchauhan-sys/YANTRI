@@ -11,16 +11,13 @@ import {
   RATE_LIMIT_WINDOW_MS,
   AUTH_RATE_LIMIT_MAX,
 } from "../config";
-import { OAuth2Client } from "google-auth-library";
-import { JWT_SECRET, JWT_EXPIRES_IN } from "../config";
 import {
-  findUserByEmail,
-  findUserById,
-  insertUser,
-  type UserRow,
-} from "../db";
-import { insertGoogleToken } from "./server_google";
-import { verifyGoogleIdToken, registerWithGoogle } from "./auth";
+  registerUser,
+  authenticateUser,
+  signToken,
+  getUserById,
+  registerWithGoogle,
+} from "../services/auth";
 import { authenticate, requireAuth, type AuthedRequest } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import { registerSchema, loginSchema } from "../utils/validation";

@@ -14,7 +14,6 @@ import {
   insertUser,
   type UserRow,
 } from "../db";
-import { insertGoogleToken } from "./server_google";
 
 export interface PublicUser {
   id: string;
@@ -160,19 +159,6 @@ export async function registerWithGoogle(googleToken: string): Promise<RegisterR
     };
     insertUser(row);
 
-    // Optionally store Google tokens for server-native Google services
-    try {
-      await insertGoogleToken({
-        userId: row.id,
-        token: googleToken,
-        refreshToken: "", // will be populated if OAuth flow provides refresh
-        expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-        scope: "profile email",
-      });
-    } catch (e) {
-      // Non-critical - Google services can be connected later from Settings
-      console.warn("[auth] Could not store Google token:", e);
-    }
 
     return { ok: true, user: toPublic(row) };
   } catch (err) {
