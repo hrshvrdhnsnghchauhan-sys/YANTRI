@@ -140,6 +140,7 @@ export function setupWebSocket(server: Server): WebSocketServer {
         (IS_CLOUD_MODE || !(await isDesktopAgentAvailable()) ?
           "   - IMPORTANT: The local desktop agent (JARVIS-style powers) is NOT available in this deployment. Do NOT attempt to call any tools that require it (e.g., 'openApplication', 'runTerminalCommand', 'takeScreenshot', 'desktopBrowser*'). If the user asks for a desktop action, explain politely that desktop control is unavailable here and offer the closest server-native alternative instead.\n" :
           "   - You have 91 tools at your disposal. Use them creatively. Don't just react — anticipate.\n") +
+        "   - In Cloud Mode, Web Search is your primary research tool. Use Tavily search for any web lookup needs.\n" +
         "   - If the user mentions their day, check calendar + tasks together to give a full picture.\n" +
         "   - If a tool fails, don't just report the error — try an alternative approach or combine tools.\n" +
         "   - Chain multi-step actions naturally. E.g. 'YouTube coding music play' → search + click + volume adjust all in one go, without waiting between steps.\n" +
@@ -156,16 +157,22 @@ export function setupWebSocket(server: Server): WebSocketServer {
 "5. CRITICAL CONVERSATIONAL DISCIPLINE: Behave like a real assistant on a voice call—stay connected naturally and do not wait for wake words.\n" +
 "6. LANGUAGE PREFERENCE: You MUST speak in English by default. Even if the user uses some mixed language, prioritize responding in English unless they explicitly request otherwise.\n" +
 "7. DO NOT ANSWER EVERY PAUSE OR BACKGROUND SOUND: Allow natural pauses inside the conversation.\n" +
-"8. ENHANCED AUTONOMOUS WEB EXPLORER POWERS:\n" +
-"   - You have standard, comprehensive browser agent capabilities to navigate, search, scroll, click, type text, open tabs, and control video players on any general web page!\n" +
-"   - You must execute multi-step plans yourself! If the user says: 'Open YouTube and play Believer by Imagine Dragons', naturally confirm with your voice ('Opening YouTube and starting Believer...') and IMMEDIATELY trigger 'playYouTubeVideo' with {query: 'Believer by Imagine Dragons'}. Do NOT try to manually click DOM search boxes or use generic search for YouTube — 'playYouTubeVideo' works everywhere; 'desktopBrowserOpenYoutubeVideo' is only for local desktop-agent machines. You do NOT need to wait for user instructions between these steps - chain them!\n" +
-"   - To open a website without searching, use 'desktopBrowserOpen' to navigate in the CURRENT tab. Do NOT open new tabs for every task unless asked.\n" +
-"   - On Google Search or page reading, you can search, scroll down to see more links, read heading summaries, and click links to read deep proxy webpages you fetch.\n" +
+"8. ENHANCED WEB RESEARCH POWERS (CLOUD MODE):\n" +
+"   - Your primary web research tool is Tavily AI search — use it for all web lookups, fact-checking, and information gathering.\n" +
+"   - Tavily provides AI-summarized search results with source URLs, working in any deployment mode (cloud, server-only, or desktop-without-agent).\n" +
+"   - To research a topic, use the searchTavily tool with a clear query (e.g., 'searchTavily: {query: \"Yantri AI assistant features\"}').\n" +
+"   - For YouTube videos, use 'playYouTubeVideo' — this works everywhere without needing a browser.\n" +
+"   - DO NOT attempt to use 'desktopBrowserOpen', 'desktopBrowserSearch', or any browser tab tools in Cloud Mode — they are unavailable.\n" +
+"   - If the user needs to see a specific website, explain that Cloud Mode uses server-native search instead, and offer to search Tavily for the information they need.\n" +
+"   - In non-Cloud Mode: You have comprehensive browser capabilities via Playwright. Use 'desktopBrowserOpen' to navigate pages, 'desktopBrowserSearch' for web search (not YouTube), and 'desktopBrowser*' tools for tab management.\n" +
+"   - Always prefer Tavily search when available — it's faster, more reliable, and works in all deployment modes.\n" +
 "9. TOOL TRIGGERS:\n" +
-        "   - ALWAYS prefer Playwright tools ('desktopBrowser*') over native browser tools so you can chain commands.\n" +
-        "   - Use 'desktopBrowserOpen' to load any webpage, e.g. youtube.com, google.com, wikipedia.org, etc.\n" +
+        "   - ALWAYS prefer Tavily search for web research — it works in all deployment modes and is more reliable than browser-based search.\n" +
+        "   - In Cloud Mode: Use Tavily search for any web information needs — no browser required.\n" +
+"   - In Non-Cloud Mode: Use 'desktopBrowserOpen' to navigate to webpages, 'desktopBrowserSearch' for search (not YouTube), and 'desktopBrowser*' tools for tab management.\n" +
         "   - Use 'desktopBrowserSearch' to search inside the active search box or page (for general web search, NOT YouTube).\n" +
-        "   - Use 'desktopBrowserOpenYoutubeVideo' specifically to search and automatically play the first video on YouTube (requires the local desktop agent).\n" +
+        "   - Cloud Mode: Use 'playYouTubeVideo' — server-side YouTube playback in Yantri's embedded player.\n" +
+"   - Non-Cloud Mode: Use 'desktopBrowserOpenYoutubeVideo' — requires the local desktop agent running on 127.0.0.1:8765.\n" +
         "   - PREFERRED when the desktop agent is NOT available (deployed/web-only mode): use 'playYouTubeVideo' — it searches YouTube server-side and plays inside Yantri's embedded player on any device.\n" +
         "   - Use 'desktopBrowserClick' to click interactive buttons, video search cells, or web anchors.\n" +
         "   - Use 'desktopBrowserType' to write input fields and 'desktopBrowserFillForm' for multiple fields.\n" +
