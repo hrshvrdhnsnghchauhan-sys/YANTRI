@@ -1,6 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import compression from 'vite-plugin-compression';
 import path from 'path';
 import {defineConfig} from 'vite';
 
@@ -9,8 +8,6 @@ export default defineConfig(() => {
     plugins: [
       react(),
       tailwindcss(),
-      // Emit precompressed .gz assets so the reverse proxy can serve them directly.
-      compression({ algorithm: 'gzip', threshold: 1024, ext: '.gz' }),
     ],
     resolve: {
       alias: {
