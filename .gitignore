@@ -26,3 +26,4 @@ yantri.db-wal
 
 # smoke test transient probe
 scripts/.smoke-probe.mjs
+*.DS_Store
