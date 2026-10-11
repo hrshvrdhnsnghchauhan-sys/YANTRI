@@ -10,10 +10,7 @@ import { LogIn, UserPlus, Loader2, ShieldCheck } from "lucide-react";
 import { API_BASE } from "../lib/config";
 import { getToken, setToken, setStoredUser } from "../lib/authStore";
 
-export function AuthGate({ children }: { children: ReactNode }) {
-  const [phase, setPhase] = useState<Phase>("checking");
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [regMethod, setRegMethod] = useState<"email" | "google">("email");
+type Phase = "checking" | "needsAuth" | "ready";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>("checking");
