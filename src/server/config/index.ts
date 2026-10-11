@@ -54,14 +54,14 @@ export const HELMET_CSP = {
     defaultSrc: ["'self'"],
     // NOTE: 'unsafe-eval' removed (issue: loose CSP). 'unsafe-inline' remains
     // required by Vite's dev/HMR bootstrap; use nonces when serving from a CDN.
-    scriptSrc: ["'self'", "'unsafe-inline'"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     imgSrc: ["'self'", "data:", "https:"],
     connectSrc: ["'self'", "ws:", "wss:", "https:"],
-    fontSrc: ["'self'", "data:"],
+    fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
     objectSrc: ["'none'"],
     mediaSrc: ["'self'", "https:"],
-    frameSrc: ["'none'"],
+    frameSrc: ["'self'", "https://accounts.google.com"],
   },
   crossOriginEmbedderPolicy: false,
 };

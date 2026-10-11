@@ -60,14 +60,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
       if (mode === "login") {
         // Email/password login
         const endpoint = "/api/auth/login";
-        const body = { email, password };
+        const body = { email: email.trim().toLowerCase(), password };
         const res = await fetch(`${API_BASE}${endpoint}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Authentication failed.");
+        if (!res.ok) {
+          const msg = Array.isArray(data.details) && data.details.length > 0 ? data.details.join(", ") : (data.error || "Authentication failed.");
+          throw new Error(msg);
+        }
         setToken(data.token);
         setStoredUser(data.user);
         setPhase("ready");
@@ -75,14 +78,21 @@ export function AuthGate({ children }: { children: ReactNode }) {
         // Register mode - choose method
         if (regMethod === "email") {
           const endpoint = "/api/auth/register";
-          const body = { email, password, name };
+          const body: { email: string; password: string; name?: string } = {
+            email: email.trim().toLowerCase(),
+            password,
+          };
+          if (name.trim()) body.name = name.trim();
           const res = await fetch(`${API_BASE}${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Registration failed.");
+          if (!res.ok) {
+            const msg = Array.isArray(data.details) && data.details.length > 0 ? data.details.join(", ") : (data.error || "Registration failed.");
+            throw new Error(msg);
+          }
           setToken(data.token);
           setStoredUser(data.user);
           setPhase("ready");

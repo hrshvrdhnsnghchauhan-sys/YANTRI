@@ -109,8 +109,8 @@ export const emailDraftSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(200),
-  name: z.string().min(1).max(100).optional(),
-  role: z.enum(["student", "professional", "business_owner"]).optional(),
+  name: z.string().max(100).nullish().transform((v) => (v && v.trim().length > 0 ? v.trim() : undefined)),
+  role: z.enum(["student", "professional", "business_owner"]).nullish().transform((v) => v || undefined),
 });
 
 export const loginSchema = z.object({
