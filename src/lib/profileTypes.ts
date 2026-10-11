@@ -60,6 +60,8 @@ export const CORE_TOOLS: ReadonlySet<string> = new Set([
   "searchYouTube",
   "searchGoogle",
   "searchGitHub",
+  "searchTavily",
+  "playYouTubeVideo",
   "createFile",
   "readFile",
   "renameFile",

@@ -242,28 +242,38 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
   // (3001) — NOT on the main backend. Polling `${API_BASE}/api/status` 404s forever.
   useEffect(() => {
     let isMounted = true;
+    let timer: ReturnType<typeof setTimeout>;
+
     const fetchStatus = async () => {
+      let connected = false;
       try {
         const res = await fetch(`${LOCAL_AGENT_BASE}/api/status`, { mode: "cors" });
         if (res.ok && isMounted) {
           const data = await res.json();
+          connected = true;
           setIsLocalConnected(true);
           if (data.logs && Array.isArray(data.logs)) {
             setLocalLogs(data.logs);
           }
+        } else if (isMounted) {
+          setIsLocalConnected(false);
         }
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setIsLocalConnected(false);
+        }
+      } finally {
+        if (isMounted) {
+          // Poll every 3.5s when active, back off to 10s when local agent isn't running
+          timer = setTimeout(fetchStatus, connected ? 3500 : 10000);
         }
       }
     };
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 3500);
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearTimeout(timer);
     };
   }, []);
 

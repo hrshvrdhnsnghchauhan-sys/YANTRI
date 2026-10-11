@@ -75,6 +75,7 @@ const SERVER_TOOLS: ReadonlySet<string> = new Set([
   "getWeather",            // server_weather_news.ts (wttr.in)
   "getNews",              // server_weather_news.ts (Google News RSS)
   "searchTavily",          // server_tavily.ts (Tavily AI search)
+  "playYouTubeVideo",      // server_youtube.ts (server-native YouTube playback)
   "openWebsite",           // client holographic browser (or agent's default-browser opener when present)
   "browserTabAction",      // client holographic browser tabs
   "browserMediaControl",   // client holographic player play/pause/volume/skip

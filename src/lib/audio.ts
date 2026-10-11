@@ -153,6 +153,8 @@ export class YantriAudioSession {
     }
   }
 
+  private lastInterruptionTime = 0;
+
   // Requests microphone and creates connections
   public async connect(voice?: string, avatarStyle?: "character" | "orb") {
     if (this.isActivated) return;
@@ -245,6 +247,24 @@ export class YantriAudioSession {
             
             const channelData = e.inputBuffer.getChannelData(0);
             
+            // Calculate RMS energy to detect acoustic feedback and room noise
+            let sum = 0;
+            for (let i = 0; i < channelData.length; i++) {
+              sum += channelData[i] * channelData[i];
+            }
+            const rms = Math.sqrt(sum / channelData.length);
+
+            // While assistant is speaking, drop audio below barge-in threshold (0.06)
+            // to prevent speaker audio bleeding into mic and repeatedly triggering self-interruption.
+            if (this.currentState === "speaking" && rms < 0.06) {
+              return;
+            }
+
+            // In listening state, filter out near-zero background silence
+            if (this.currentState !== "speaking" && rms < 0.003) {
+              return;
+            }
+
             // Convert to base64 Int16 Little Endian PCM
             const pcmBuffer = floatTo16BitPCM(channelData);
             const base64 = base64ArrayBuffer(pcmBuffer);
@@ -390,6 +410,11 @@ export class YantriAudioSession {
 
   // Interruption triggers: stops all active audio players immediately
   private handleInterruption() {
+    const now = Date.now();
+    if (now - this.lastInterruptionTime < 400) {
+      return; // Ignore duplicate/spurious rapid interruption pulses
+    }
+    this.lastInterruptionTime = now;
     console.log("[Audio] Interruption signal received; flushing play logs.");
     
     // Stop all playing nodes
