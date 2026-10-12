@@ -548,5 +548,5 @@ Designed and developed by **Sarang (SarangRao20)** — an independent developer 
 - Hinglish language support in system prompt
 
 ---
+*Built by Harsh Vardhan Singh Chauhan*
 
-*Built by Sarang*
